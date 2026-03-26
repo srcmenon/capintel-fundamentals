@@ -5,7 +5,13 @@
 
 import express from "express"
 import yahooFinance from "yahoo-finance2"
-/* v2.3.10 has quoteSummary directly on the default export */
+/* v2.3.10 — suppress validation errors and configure for server-side use */
+yahooFinance.setGlobalConfig({
+  validation: {
+    logErrors:   false,
+    logOptionsErrors: false
+  }
+})
 
 const app  = express()
 const PORT = process.env.PORT || 3001
@@ -44,7 +50,7 @@ async function fetchFundamentals(ticker) {
   try {
     const data = await yahooFinance.quoteSummary(ticker, {
       modules: ["financialData", "defaultKeyStatistics", "summaryDetail", "assetProfile"]
-    })
+    }, { validateResult: false })
     if (!data) return null
 
     const fd = data.financialData        || {}
