@@ -12,7 +12,35 @@
    ============================================================ */
 
 import express from "express"
-import yahooFinance from "yahoo-finance2"
+import yahooFinanceModule from "yahoo-finance2"
+
+/* yahoo-finance2 exports a class — instantiate and find quoteSummary */
+const YF       = yahooFinanceModule.default ?? yahooFinanceModule
+const instance = (typeof YF === "function") ? new YF() : YF
+
+/* Walk full prototype chain to find quoteSummary */
+function findMethod(obj, name) {
+  let proto = obj
+  while (proto && proto !== Object.prototype) {
+    if (typeof proto[name] === "function") return proto[name].bind(obj)
+    proto = Object.getPrototypeOf(proto)
+  }
+  return null
+}
+
+const quoteSummaryFn = findMethod(instance, "quoteSummary")
+
+/* Log what we found for Render diagnostics */
+const allMethods = []
+let p = instance
+while (p && p !== Object.prototype) {
+  Object.getOwnPropertyNames(p).forEach(k => {
+    if (typeof instance[k] === "function") allMethods.push(k)
+  })
+  p = Object.getPrototypeOf(p)
+}
+console.log("[yf2] methods found:", allMethods)
+console.log("[yf2] quoteSummary found:", !!quoteSummaryFn)
 
 const app  = express()
 const PORT = process.env.PORT || 3001
@@ -49,7 +77,11 @@ function toYahooTicker(pos) {
 /* ── Fetch fundamentals from Yahoo Finance ── */
 async function fetchFundamentals(ticker) {
   try {
-    const data = await yahooFinance.quoteSummary(ticker, {
+    if (!quoteSummaryFn) {
+      console.error("[yf2] quoteSummary not available — available methods:", allMethods)
+      return null
+    }
+    const data = await quoteSummaryFn(ticker, {
       modules: ["financialData", "defaultKeyStatistics", "summaryDetail", "assetProfile"]
     })
     if (!data) return null
