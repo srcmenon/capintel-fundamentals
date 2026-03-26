@@ -1,46 +1,11 @@
 /* ============================================================
-   CapIntel Fundamentals Microservice
-   Deployed on Render.com — different IP range from Vercel,
-   not blocked by Yahoo Finance.
-
-   yahoo-finance2 works here because Render's IPs are not
-   flagged by Yahoo's anti-scraping systems.
-
-   Endpoints:
-   POST /fundamentals  { positions, techMap, goals }
-   GET  /health        → { status: "ok" }
+   CapIntel Fundamentals Microservice — Render.com
+   yahoo-finance2 v2.3.10 works on Render (not blocked by Yahoo)
    ============================================================ */
 
 import express from "express"
-import yahooFinanceModule from "yahoo-finance2"
-
-/* yahoo-finance2 exports a class — instantiate and find quoteSummary */
-const YF       = yahooFinanceModule.default ?? yahooFinanceModule
-const instance = (typeof YF === "function") ? new YF() : YF
-
-/* Walk full prototype chain to find quoteSummary */
-function findMethod(obj, name) {
-  let proto = obj
-  while (proto && proto !== Object.prototype) {
-    if (typeof proto[name] === "function") return proto[name].bind(obj)
-    proto = Object.getPrototypeOf(proto)
-  }
-  return null
-}
-
-const quoteSummaryFn = findMethod(instance, "quoteSummary")
-
-/* Log what we found for Render diagnostics */
-const allMethods = []
-let p = instance
-while (p && p !== Object.prototype) {
-  Object.getOwnPropertyNames(p).forEach(k => {
-    if (typeof instance[k] === "function") allMethods.push(k)
-  })
-  p = Object.getPrototypeOf(p)
-}
-console.log("[yf2] methods found:", allMethods)
-console.log("[yf2] quoteSummary found:", !!quoteSummaryFn)
+import yahooFinance from "yahoo-finance2"
+/* v2.3.10 has quoteSummary directly on the default export */
 
 const app  = express()
 const PORT = process.env.PORT || 3001
@@ -77,11 +42,7 @@ function toYahooTicker(pos) {
 /* ── Fetch fundamentals from Yahoo Finance ── */
 async function fetchFundamentals(ticker) {
   try {
-    if (!quoteSummaryFn) {
-      console.error("[yf2] quoteSummary not available — available methods:", allMethods)
-      return null
-    }
-    const data = await quoteSummaryFn(ticker, {
+    const data = await yahooFinance.quoteSummary(ticker, {
       modules: ["financialData", "defaultKeyStatistics", "summaryDetail", "assetProfile"]
     })
     if (!data) return null
