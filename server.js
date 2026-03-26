@@ -4,14 +4,10 @@
    ============================================================ */
 
 import express from "express"
-import yahooFinance from "yahoo-finance2"
-/* v2.3.10 — suppress validation errors and configure for server-side use */
-yahooFinance.setGlobalConfig({
-  validation: {
-    logErrors:   false,
-    logOptionsErrors: false
-  }
-})
+import yahooFinanceModule from "yahoo-finance2"
+/* v2.13.x — quote() is available and works without crumb issues */
+const YF = yahooFinanceModule.default ?? yahooFinanceModule
+const yf = (typeof YF === "function") ? new YF() : YF
 
 const app  = express()
 const PORT = process.env.PORT || 3001
@@ -48,39 +44,27 @@ function toYahooTicker(pos) {
 /* ── Fetch fundamentals from Yahoo Finance ── */
 async function fetchFundamentals(ticker) {
   try {
-    const data = await yahooFinance.quoteSummary(ticker, {
-      modules: ["financialData", "defaultKeyStatistics", "summaryDetail", "assetProfile"]
-    }, { validateResult: false })
-    if (!data) return null
-
-    const fd = data.financialData        || {}
-    const ks = data.defaultKeyStatistics || {}
-    const sd = data.summaryDetail        || {}
-    const ap = data.assetProfile         || {}
-    const n  = v => (typeof v === "number" && isFinite(v)) ? v : null
-
+    /* quote() is confirmed available in v2.13.x and works without crumb errors */
+    const q = await yf.quote(ticker)
+    if (!q) return null
+    const n = v => (typeof v === "number" && isFinite(v)) ? v : null
+    console.log(`[yf] ${ticker} pe=${q.trailingPE} pb=${q.priceToBook} roe=${q.returnOnEquity}`)
     return {
-      trailingPE:      n(sd.trailingPE)        ?? n(ks.forwardPE),
-      priceToBook:     n(ks.priceToBook),
-      roe:             n(fd.returnOnEquity),
-      roa:             n(fd.returnOnAssets),
-      profitMargins:   n(fd.profitMargins),
-      operatingMargins:n(fd.operatingMargins),
-      grossMargins:    n(fd.grossMargins),
-      debtToEquity:    n(fd.debtToEquity),
-      currentRatio:    n(fd.currentRatio),
-      revenueGrowth:   n(fd.revenueGrowth),
-      earningsGrowth:  n(fd.earningsGrowth),
-      revenuePerShare: n(fd.revenuePerShare),
-      trailingEps:     n(ks.trailingEps),
-      forwardEps:      n(ks.forwardEps),
-      sector:          ap.sector   || null,
-      industry:        ap.industry || null,
-      marketCap:       n(sd.marketCap),
-      beta:            n(ks.beta),
-      recommendationKey:       fd.recommendationKey || null,
-      numberOfAnalystOpinions: n(fd.numberOfAnalystOpinions),
-      targetMeanPrice:         n(fd.targetMeanPrice),
+      trailingPE:      n(q.trailingPE),
+      priceToBook:     n(q.priceToBook),
+      roe:             n(q.returnOnEquity),
+      profitMargins:   n(q.profitMargins),
+      operatingMargins:n(q.operatingMargins),
+      debtToEquity:    n(q.debtToEquity),
+      revenueGrowth:   n(q.revenueGrowth),
+      earningsGrowth:  n(q.earningsGrowth),
+      trailingEps:     n(q.epsTrailingTwelveMonths),
+      forwardEps:      n(q.epsForward),
+      sector:          q.sector   || null,
+      industry:        q.industry || null,
+      marketCap:       n(q.marketCap),
+      recommendationKey:       q.averageAnalystRating || null,
+      targetMeanPrice:         n(q.targetMeanPrice),
     }
   } catch(e) {
     console.error(`[fundamentals] ${ticker}: ${e.message}`)
