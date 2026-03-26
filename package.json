@@ -3,11 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
+  "scripts": { "start": "node server.js" },
   "dependencies": {
     "express": "^4.18.2",
-    "yahoo-finance2": "2.3.10"
+    "yahoo-finance2": "^2.13.3"
   }
 }
